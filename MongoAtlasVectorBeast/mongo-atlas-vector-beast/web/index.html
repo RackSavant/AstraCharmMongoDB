@@ -1,0 +1,472 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Vector Beast — Visual Canvas & Topology Compiler</title>
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=Outfit:wght@300;400;600;700;800&family=JetBrains+Mono:wght@400;600;700&display=swap" rel="stylesheet">
+  <style>
+    :root {
+      --bg-dark: #0B0F19;
+      --panel-bg: rgba(18, 24, 38, 0.85);
+      --card-bg: #161F33;
+      --border-color: #23314D;
+      --mongo-green: #00ED64;
+      --voyage-purple: #A855F7;
+      --blue-accent: #3B82F6;
+      --amber-accent: #F59E0B;
+      --text-main: #F3F4F6;
+      --text-sub: #9CA3AF;
+    }
+
+    * {
+      box-sizing: border-box;
+      margin: 0;
+      padding: 0;
+    }
+
+    body {
+      font-family: 'Outfit', sans-serif;
+      background-color: var(--bg-dark);
+      color: var(--text-main);
+      min-height: 100vh;
+      display: flex;
+      flex-direction: column;
+      overflow-x: hidden;
+    }
+
+    header {
+      background: var(--panel-bg);
+      backdrop-filter: blur(12px);
+      border-bottom: 1px solid var(--border-color);
+      padding: 1rem 2rem;
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      position: sticky;
+      top: 0;
+      z-index: 100;
+    }
+
+    .logo-group {
+      display: flex;
+      align-items: center;
+      gap: 12px;
+    }
+
+    .logo-icon {
+      font-size: 1.8rem;
+    }
+
+    .logo-title {
+      font-weight: 800;
+      font-size: 1.4rem;
+      background: linear-gradient(135deg, var(--mongo-green), #6EE7B7);
+      -webkit-background-clip: text;
+      -webkit-text-fill-color: transparent;
+    }
+
+    .badge {
+      font-size: 0.75rem;
+      font-weight: 700;
+      text-transform: uppercase;
+      padding: 4px 10px;
+      border-radius: 999px;
+      background: rgba(0, 237, 100, 0.15);
+      color: var(--mongo-green);
+      border: 1px solid rgba(0, 237, 100, 0.3);
+    }
+
+    .main-container {
+      display: grid;
+      grid-template-columns: 1fr 480px;
+      flex: 1;
+      height: calc(100vh - 73px);
+    }
+
+    .canvas-panel {
+      padding: 2rem;
+      display: flex;
+      flex-direction: column;
+      gap: 1.5rem;
+      position: relative;
+      background-image: 
+        radial-gradient(circle at 1px 1px, rgba(255,255,255,0.05) 1px, transparent 0);
+      background-size: 24px 24px;
+    }
+
+    .controls-bar {
+      display: flex;
+      gap: 1rem;
+      align-items: center;
+      background: var(--panel-bg);
+      padding: 0.75rem 1.25rem;
+      border-radius: 12px;
+      border: 1px solid var(--border-color);
+      box-shadow: 0 8px 32px rgba(0,0,0,0.3);
+    }
+
+    .btn {
+      font-family: inherit;
+      font-weight: 600;
+      font-size: 0.88rem;
+      padding: 8px 16px;
+      border-radius: 8px;
+      border: 1px solid var(--border-color);
+      background: var(--card-bg);
+      color: var(--text-main);
+      cursor: pointer;
+      transition: all 0.2s ease;
+      display: flex;
+      align-items: center;
+      gap: 6px;
+    }
+
+    .btn:hover {
+      border-color: var(--mongo-green);
+      color: var(--mongo-green);
+      transform: translateY(-1px);
+    }
+
+    .btn.active {
+      background: var(--mongo-green);
+      color: #000;
+      border-color: var(--mongo-green);
+      box-shadow: 0 0 16px rgba(0, 237, 100, 0.4);
+    }
+
+    .canvas-view {
+      flex: 1;
+      display: flex;
+      flex-direction: column;
+      justify-content: center;
+      align-items: center;
+      position: relative;
+    }
+
+    .nodes-flow {
+      display: flex;
+      align-items: center;
+      gap: 2rem;
+      flex-wrap: wrap;
+      justify-content: center;
+      z-index: 10;
+    }
+
+    .node-card {
+      background: var(--card-bg);
+      border: 1px solid var(--border-color);
+      border-radius: 14px;
+      padding: 1.25rem;
+      width: 220px;
+      box-shadow: 0 12px 24px rgba(0,0,0,0.4);
+      transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1);
+      position: relative;
+    }
+
+    .node-card:hover {
+      border-color: var(--mongo-green);
+      transform: translateY(-4px);
+      box-shadow: 0 16px 32px rgba(0, 237, 100, 0.15);
+    }
+
+    .node-header {
+      display: flex;
+      align-items: center;
+      gap: 8px;
+      margin-bottom: 0.75rem;
+    }
+
+    .node-icon {
+      font-size: 1.2rem;
+    }
+
+    .node-title {
+      font-weight: 700;
+      font-size: 0.95rem;
+    }
+
+    .node-type-tag {
+      font-size: 0.7rem;
+      font-family: 'JetBrains Mono', monospace;
+      color: var(--text-sub);
+      background: rgba(255,255,255,0.05);
+      padding: 2px 6px;
+      border-radius: 4px;
+      margin-bottom: 0.75rem;
+      display: inline-block;
+    }
+
+    .node-body {
+      font-size: 0.8rem;
+      color: var(--text-sub);
+      line-height: 1.4;
+      background: rgba(0,0,0,0.2);
+      padding: 8px;
+      border-radius: 6px;
+      font-family: 'JetBrains Mono', monospace;
+    }
+
+    .connector-arrow {
+      font-size: 1.5rem;
+      color: var(--mongo-green);
+      animation: pulseArrow 1.5s infinite ease-in-out;
+    }
+
+    @keyframes pulseArrow {
+      0%, 100% { transform: translateX(0); opacity: 0.6; }
+      50% { transform: translateX(4px); opacity: 1; }
+    }
+
+    .inspector-panel {
+      background: var(--panel-bg);
+      border-left: 1px solid var(--border-color);
+      display: flex;
+      flex-direction: column;
+      backdrop-filter: blur(12px);
+    }
+
+    .inspector-header {
+      padding: 1.25rem 1.5rem;
+      border-bottom: 1px solid var(--border-color);
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+    }
+
+    .inspector-title {
+      font-weight: 700;
+      font-size: 1.1rem;
+      display: flex;
+      align-items: center;
+      gap: 8px;
+    }
+
+    .json-container {
+      flex: 1;
+      padding: 1.5rem;
+      overflow-y: auto;
+      font-family: 'JetBrains Mono', monospace;
+      font-size: 0.82rem;
+      line-height: 1.5;
+      background: #070A10;
+      color: #A7F3D0;
+    }
+
+    pre {
+      white-space: pre-wrap;
+      word-break: break-all;
+    }
+
+    .opt-banner {
+      background: rgba(0, 237, 100, 0.1);
+      border: 1px solid rgba(0, 237, 100, 0.3);
+      border-radius: 8px;
+      padding: 10px 14px;
+      font-size: 0.82rem;
+      color: var(--mongo-green);
+      margin-bottom: 1rem;
+      display: flex;
+      align-items: center;
+      gap: 8px;
+    }
+  </style>
+</head>
+<body>
+
+  <header>
+    <div class="logo-group">
+      <span class="logo-icon">🐉</span>
+      <span class="logo-title">Vector Beast</span>
+      <span class="badge">Atlas Topology Compiler</span>
+    </div>
+    <div style="font-size:0.85rem; color: var(--text-sub);">
+      MongoDB Atlas Vector Search & RAG Visual Engine
+    </div>
+  </header>
+
+  <div class="main-container">
+    <div class="canvas-panel">
+      
+      <div class="controls-bar">
+        <span style="font-weight:700; font-size:0.85rem; color:var(--text-sub);">CANVAS STATE:</span>
+        <button class="btn active" id="btnDefault" onclick="setTopology('default')">
+          <span>🔄</span> Post-Filter (Default)
+        </button>
+        <button class="btn" id="btnPreFilter" onclick="setTopology('preFilter')">
+          <span>⚡</span> Pre-Filter (Rewired)
+        </button>
+        <button class="btn" id="btnFullBeast" onclick="setTopology('fullBeast')">
+          <span>🔥</span> Full Vector Beast (Voyage-4 + Claude)
+        </button>
+      </div>
+
+      <div class="canvas-view">
+        <div class="nodes-flow" id="nodesContainer">
+          <!-- Dynamically populated -->
+        </div>
+      </div>
+
+    </div>
+
+    <div class="inspector-panel">
+      <div class="inspector-header">
+        <div class="inspector-title">
+          <span>⚙️</span> Compiled Pipeline AST
+        </div>
+        <span class="badge" id="modeBadge">Native Atlas</span>
+      </div>
+      <div style="padding: 1rem 1.5rem 0;">
+        <div class="opt-banner" id="optBanner">
+          <span>💡</span> <b>Post-Filter State:</b> $vectorSearch runs over all documents before applying $match filter.
+        </div>
+      </div>
+      <div class="json-container">
+        <pre id="jsonOutput"></pre>
+      </div>
+    </div>
+  </div>
+
+  <script>
+    const topologies = {
+      default: {
+        badge: "Standard KNN",
+        banner: "💡 <b>Post-Filter State:</b> $vectorSearch runs first over un-indexed candidates, then applies post-filter $match.",
+        nodes: [
+          { icon: "📁", title: "Data Source", type: "dataSource", detail: "collection: 'employees'" },
+          { icon: "🔎", title: "Vector Search", type: "vectorSearch", detail: "index: 'expertise_idx'\nlimit: 10" },
+          { icon: "🎯", title: "Filter", type: "filter", detail: "field: 'department'\nvalue: 'Engineering'" }
+        ],
+        compiled: {
+          collection: "employees",
+          embeddingMode: "external_vector",
+          pipeline: [
+            {
+              "$vectorSearch": {
+                "index": "expertise_vector_index",
+                "path": "expertise_embedding",
+                "queryVector": "[DYNAMIC_EMBEDDING_VECTOR]",
+                "numCandidates": 100,
+                "limit": 10
+              }
+            },
+            {
+              "$match": { "department": { "$eq": "Engineering" } }
+            }
+          ],
+          executionOrder: ["n1 (dataSource)", "n2 (vectorSearch)", "n3 (filter)"]
+        }
+      },
+
+      preFilter: {
+        badge: "Pre-Filter Optimized",
+        banner: "⚡ <b>Pre-Filter Optimization:</b> Canvas filter dragged BEFORE $vectorSearch. $match stage precedes vector search for $O(log N)$ indexing efficiency!",
+        nodes: [
+          { icon: "📁", title: "Data Source", type: "dataSource", detail: "collection: 'employees'" },
+          { icon: "🎯", title: "Filter", type: "filter", detail: "field: 'department'\nvalue: 'Engineering'" },
+          { icon: "🔎", title: "Vector Search", type: "vectorSearch", detail: "index: 'expertise_idx'\nlimit: 10" }
+        ],
+        compiled: {
+          collection: "employees",
+          embeddingMode: "external_vector",
+          pipeline: [
+            {
+              "$match": { "department": { "$eq": "Engineering" } }
+            },
+            {
+              "$vectorSearch": {
+                "index": "expertise_vector_index",
+                "path": "expertise_embedding",
+                "queryVector": "[DYNAMIC_EMBEDDING_VECTOR]",
+                "numCandidates": 100,
+                "limit": 10
+              }
+            }
+          ],
+          executionOrder: ["n1 (dataSource)", "n3 (filter)", "n2 (vectorSearch)"]
+        }
+      },
+
+      fullBeast: {
+        badge: "MongoDB AI + Voyage Rerank",
+        banner: "🔥 <b>Full Vector Beast Suite:</b> MongoDB AI Voyage-4-Large automated embedding + Voyage Rerank (voyage-rerank-2) + Anthropic Claude Sonnet 5!",
+        nodes: [
+          { icon: "📁", title: "Data Source", type: "dataSource", detail: "collection: 'employees'" },
+          { icon: "🎯", title: "Filter", type: "filter", detail: "field: 'department'\nvalue: 'Platform Engineering'" },
+          { icon: "🪪", title: "MongoDB AI Embedding", type: "mongoDbAiEmbedding", detail: "endpoint: 'ai.mongodb.com'\nmodel: 'voyage-4-large'" },
+          { icon: "🎯", title: "Voyage Rerank", type: "rerank", detail: "provider: 'voyage'\nmodel: 'voyage-rerank-2'\ntopK: 5" },
+          { icon: "🤖", title: "LLM Agent", type: "llmAgent", detail: "provider: 'anthropic'\nmodel: 'claude-sonnet-5'" }
+        ],
+        compiled: {
+          collection: "employees",
+          embeddingMode: "mongodb_ai_voyage",
+          pipeline: [
+            {
+              "$match": { "department": { "$eq": "Platform Engineering" } }
+            },
+            {
+              "$vectorSearch": {
+                "index": "review_vector_index",
+                "path": "review_embedding",
+                "queryText": "Top cloud software architects with distributed systems experience",
+                "numCandidates": 100,
+                "limit": 20,
+                "embeddingEndpoint": "https://ai.mongodb.com/v1/embeddings",
+                "model": "voyage-4-large"
+              }
+            }
+          ],
+          rerankStages: [
+            { "stageType": "rerank", "provider": "voyage", "model": "voyage-rerank-2", "topK": 5 }
+          ],
+          llmStages: [
+            { "stageType": "llmAgent", "provider": "anthropic", "model": "claude-sonnet-5" }
+          ],
+          executionOrder: ["n1 (dataSource)", "n2_filter (filter)", "n3_native_emb (mongoDbAiEmbedding)", "n4_rerank (rerank)", "n5_llm (llmAgent)"]
+        }
+      }
+    };
+
+    function setTopology(type) {
+      document.querySelectorAll('.btn').forEach(b => b.classList.remove('active'));
+      if (type === 'default') document.getElementById('btnDefault').classList.add('active');
+      if (type === 'preFilter') document.getElementById('btnPreFilter').classList.add('active');
+      if (type === 'fullBeast') document.getElementById('btnFullBeast').classList.add('active');
+
+      const data = topologies[type];
+      document.getElementById('modeBadge').innerText = data.badge;
+      document.getElementById('optBanner').innerHTML = data.banner;
+      document.getElementById('jsonOutput').innerText = JSON.stringify(data.compiled, null, 2);
+
+      const container = document.getElementById('nodesContainer');
+      container.innerHTML = '';
+
+      data.nodes.forEach((node, idx) => {
+        const card = document.createElement('div');
+        card.className = 'node-card';
+        card.innerHTML = `
+          <div class="node-header">
+            <span class="node-icon">${node.icon}</span>
+            <span class="node-title">${node.title}</span>
+          </div>
+          <div class="node-type-tag">${node.type}</div>
+          <div class="node-body">${node.detail.replace('\n', '<br>')}</div>
+        `;
+        container.appendChild(card);
+
+        if (idx < data.nodes.length - 1) {
+          const arrow = document.createElement('div');
+          arrow.className = 'connector-arrow';
+          arrow.innerHTML = '➔';
+          container.appendChild(arrow);
+        }
+      });
+    }
+
+    // Initialize with default
+    setTopology('default');
+  </script>
+</body>
+</html>

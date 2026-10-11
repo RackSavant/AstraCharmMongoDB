@@ -1,0 +1,136 @@
+{
+  "name": "MongoDB Atlas AI Agent with Vector Store & Chat Memory (n8n)",
+  "nodes": [
+    {
+      "parameters": {
+        "httpMethod": "POST",
+        "path": "agent-chat",
+        "responseMode": "lastNode",
+        "options": {}
+      },
+      "id": "node-webhook-1",
+      "name": "Webhook Trigger",
+      "type": "n8n-nodes-base.webhook",
+      "typeVersion": 1,
+      "position": [100, 300]
+    },
+    {
+      "parameters": {
+        "agent": "conversationalAgent",
+        "promptType": "define",
+        "text": "={{ $json.body.message }}",
+        "options": {
+          "systemMessage": "You are an AI Concierge connected to a MongoDB Atlas Vector Store for RAG retrieval and a MongoDB Chat Memory store for session history."
+        }
+      },
+      "id": "node-ai-agent-2",
+      "name": "AI Agent Node",
+      "type": "@n8n/n8n-nodes-langchain.agent",
+      "typeVersion": 1.7,
+      "position": [350, 300]
+    },
+    {
+      "parameters": {
+        "modelName": "models/gemini-2.5-flash"
+      },
+      "id": "node-llm-3",
+      "name": "Google Gemini Model",
+      "type": "@n8n/n8n-nodes-langchain.lmChatGoogleGemini",
+      "typeVersion": 1,
+      "position": [250, 520],
+      "credentials": {
+        "googlePalmApi": {
+          "id": "cred-gemini-1",
+          "name": "Gemini API Key"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "mode": "retrieve-as-tool",
+        "toolName": "mongodb_vector_search_tool",
+        "toolDescription": "Searches MongoDB Atlas Vector Store for context and documents relevant to user prompt.",
+        "options": {
+          "indexName": "vector_index",
+          "collectionName": "knowledge_embeddings",
+          "databaseName": "agentbook_db"
+        }
+      },
+      "id": "node-vector-store-4",
+      "name": "MongoDB Atlas Vector Store Node",
+      "type": "@n8n/n8n-nodes-langchain.vectorStoreMongoDbAtlas",
+      "typeVersion": 1,
+      "position": [550, 520],
+      "credentials": {
+        "mongoDb": {
+          "id": "cred-mongodb-1",
+          "name": "MongoDB Atlas Connection"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "collectionName": "chat_memory_sessions",
+        "sessionKey": "={{ $json.body.sessionId || 'default_session' }}",
+        "databaseName": "agentbook_db"
+      },
+      "id": "node-chat-memory-5",
+      "name": "MongoDB Chat Memory Node",
+      "type": "@n8n/n8n-nodes-langchain.memoryMongoDbChat",
+      "typeVersion": 1,
+      "position": [400, 520],
+      "credentials": {
+        "mongoDb": {
+          "id": "cred-mongodb-1",
+          "name": "MongoDB Atlas Connection"
+        }
+      }
+    }
+  ],
+  "connections": {
+    "Webhook Trigger": {
+      "main": [
+        [
+          {
+            "node": "AI Agent Node",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Google Gemini Model": {
+      "ai_languageModel": [
+        [
+          {
+            "node": "AI Agent Node",
+            "type": "ai_languageModel",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "MongoDB Chat Memory Node": {
+      "ai_memory": [
+        [
+          {
+            "node": "AI Agent Node",
+            "type": "ai_memory",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "MongoDB Atlas Vector Store Node": {
+      "ai_tool": [
+        [
+          {
+            "node": "AI Agent Node",
+            "type": "ai_tool",
+            "index": 0
+          }
+        ]
+      ]
+    }
+  }
+}

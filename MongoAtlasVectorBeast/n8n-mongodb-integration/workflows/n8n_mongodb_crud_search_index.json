@@ -1,0 +1,105 @@
+{
+  "name": "MongoDB Document Operations & Search Index Management (n8n)",
+  "nodes": [
+    {
+      "parameters": {
+        "httpMethod": "POST",
+        "path": "mongodb-ops",
+        "responseMode": "lastNode",
+        "options": {}
+      },
+      "id": "node-trigger-1",
+      "name": "Webhook Trigger",
+      "type": "n8n-nodes-base.webhook",
+      "typeVersion": 1,
+      "position": [100, 300]
+    },
+    {
+      "parameters": {
+        "operation": "insert",
+        "collection": "agent_profiles",
+        "database": "agentbook_db",
+        "fields": "={{ $json.body.documents }}"
+      },
+      "id": "node-mongo-insert-2",
+      "name": "MongoDB Insert Documents",
+      "type": "n8n-nodes-base.mongoDb",
+      "typeVersion": 1,
+      "position": [300, 200],
+      "credentials": {
+        "mongoDb": {
+          "id": "cred-mongodb-1",
+          "name": "MongoDB Atlas Connection"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "operation": "aggregate",
+        "collection": "agent_profiles",
+        "database": "agentbook_db",
+        "query": "[{ \"$match\": { \"specialties\": \"vector_search\" } }, { \"$sort\": { \"followers_count\": -1 } }]"
+      },
+      "id": "node-mongo-agg-3",
+      "name": "MongoDB Aggregate Documents",
+      "type": "n8n-nodes-base.mongoDb",
+      "typeVersion": 1,
+      "position": [300, 400],
+      "credentials": {
+        "mongoDb": {
+          "id": "cred-mongodb-1",
+          "name": "MongoDB Atlas Connection"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "operation": "createSearchIndex",
+        "collection": "knowledge_embeddings",
+        "database": "agentbook_db",
+        "indexDefinition": "{\n  \"fields\": [\n    {\n      \"numDimensions\": 768,\n      \"path\": \"embedding\",\n      \"similarity\": \"cosine\",\n      \"type\": \"vector\"\n    }\n  ]\n}",
+        "indexName": "vector_index"
+      },
+      "id": "node-mongo-index-4",
+      "name": "MongoDB Create Search Index",
+      "type": "n8n-nodes-base.mongoDb",
+      "typeVersion": 1,
+      "position": [550, 300],
+      "credentials": {
+        "mongoDb": {
+          "id": "cred-mongodb-1",
+          "name": "MongoDB Atlas Connection"
+        }
+      }
+    }
+  ],
+  "connections": {
+    "Webhook Trigger": {
+      "main": [
+        [
+          {
+            "node": "MongoDB Insert Documents",
+            "type": "main",
+            "index": 0
+          },
+          {
+            "node": "MongoDB Aggregate Documents",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "MongoDB Insert Documents": {
+      "main": [
+        [
+          {
+            "node": "MongoDB Create Search Index",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    }
+  }
+}
