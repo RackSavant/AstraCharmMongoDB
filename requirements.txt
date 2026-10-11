@@ -1,0 +1,11 @@
+fastapi>=0.110
+uvicorn[standard]>=0.29
+pydantic>=2.6
+pymongo>=4.7
+mongomock>=4.1
+python-dotenv>=1.0
+httpx>=0.27
+numpy>=1.26
+trimesh>=4.3
+networkx>=3.2
+pytest>=8.0

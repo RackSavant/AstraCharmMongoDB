@@ -1,0 +1,113 @@
+<!doctype html>
+<html>
+<head>
+<meta charset="utf-8">
+<title>Astra OS - Memory Inspector</title>
+<style>
+  body { font-family: -apple-system, sans-serif; margin: 0; background: #0f1115; color: #e6e6e6; }
+  header { padding: 12px 20px; background: #181b22; display: flex; gap: 12px; align-items: center; }
+  main { display: grid; grid-template-columns: 1fr 1fr 1fr; gap: 12px; padding: 12px; }
+  section { background: #181b22; border-radius: 8px; padding: 12px; overflow: auto; max-height: 82vh; }
+  h3 { margin: 0 0 8px; font-size: 14px; color: #9aa4b2; text-transform: uppercase; }
+  input, button { padding: 6px 10px; border-radius: 6px; border: 1px solid #333; background: #232733; color: #eee; }
+  button { cursor: pointer; } button:hover { background: #2f3547; }
+  pre { white-space: pre-wrap; font-size: 12px; margin: 4px 0; }
+  .tag { display: inline-block; font-size: 11px; padding: 1px 6px; border-radius: 4px; background: #2b3a55; margin-right: 4px; }
+  .bad { color: #ff8080; } .good { color: #7ee787; }
+  .ev { border-left: 2px solid #3b4252; padding-left: 8px; margin: 6px 0; font-size: 12px; }
+</style>
+</head>
+<body>
+<header>
+  <b>Astra OS</b>
+  <input id="cust" value="ana" size="8" title="customer id">
+  <input id="req" value="elegant silver ring" size="36">
+  <button onclick="gen()">Generate</button>
+  <button onclick="cmp()">Memory ON vs OFF</button>
+  <button onclick="resetDemo()">Reset demo</button>
+  <span id="status"></span>
+</header>
+<main>
+  <section>
+    <h3>Current design</h3>
+    <div id="design">none yet</div>
+    <div id="actions" style="margin-top:8px"></div>
+    <h3 style="margin-top:16px">Compare</h3>
+    <div id="compare"></div>
+  </section>
+  <section>
+    <h3>Customer memory (Atlas)</h3>
+    <div id="memory"></div>
+    <h3 style="margin-top:16px">Manufacturing</h3>
+    <div id="jobs"></div>
+  </section>
+  <section>
+    <h3>Decision trace (agent_events)</h3>
+    <div id="events"></div>
+  </section>
+</main>
+<script>
+let session = null, current = null;
+const $ = id => document.getElementById(id);
+const cid = () => $("cust").value.trim();
+async function api(method, url, body) {
+  const r = await fetch(url, { method, headers: { "Content-Type": "application/json" }, body: body ? JSON.stringify(body) : undefined });
+  const data = await r.json().catch(() => ({}));
+  if (!r.ok) { $("status").textContent = `${r.status}: ${data.detail || ""}`; throw new Error(data.detail); }
+  $("status").textContent = "";
+  return data;
+}
+async function gen() {
+  current = await api("POST", "/designs", { customer_id: cid(), request_text: $("req").value, session_id: session });
+  session = current.session_id;
+  render();
+}
+function render() {
+  const d = current;
+  if (!d) return;
+  const viol = d.initial_violations.map(v => `<div class="bad">${v.rule_id}: ${v.message}</div>`).join("");
+  const fixes = d.fixes.map(f => `<div class="good">fixed ${f.field}: ${f.from} -> ${f.to} (${f.rule_id})</div>`).join("");
+  const diff = d.diff_vs_parent.map(x => `<div>${x.field}: ${x.from} -> <b>${x.to}</b></div>`).join("");
+  $("design").innerHTML = `<span class="tag">v${d.design_version}</span><span class="tag">${d.approval_status}</span>
+    <span class="tag">policy ${d.policy_version}</span><pre>${JSON.stringify(d.spec, null, 2)}</pre>
+    ${d.changed_because.length ? "<b>Changed because:</b> " + d.changed_because.join("; ") : ""}
+    ${diff ? "<h3>Diff vs previous</h3>" + diff : ""}${viol}${fixes}`;
+  $("actions").innerHTML = `<input id="reason" placeholder="rejection reason" size="28">
+    <button onclick="fb('reject')">Reject</button> <button onclick="fb('accept')">Accept</button>`;
+  refresh();
+}
+async function fb(verdict) {
+  const reason = $("reason") ? $("reason").value : "";
+  await api("POST", `/designs/${current.id}/feedback`, { verdict, reason_text: reason });
+  current = await api("GET", `/designs/${current.id}`);
+  render();
+}
+async function approve(jobId) { await api("POST", `/jobs/${jobId}/approve`); await refresh(); }
+async function exportStl(designId) {
+  await api("POST", `/designs/${designId}/export`);
+  window.open(`/designs/${designId}/stl`);
+  refresh();
+}
+async function delMem(id) { await api("DELETE", `/customers/${cid()}/memory/${id}`); refresh(); }
+async function cmp() {
+  const r = await api("POST", "/compare", { customer_id: cid(), request_text: $("req").value });
+  const col = (t, x) => `<div><b>${t}</b> (~${x.prompt_tokens_est} tokens, ${x.memory_refs.length} memories)<pre>${JSON.stringify(x.spec, null, 1)}</pre></div>`;
+  $("compare").innerHTML = col("Memory ON", r.memory_on) + col("Memory OFF", r.memory_off) +
+    "<b>Differences:</b>" + r.diff.map(x => `<div>${x.field}: ${x.from} -> ${x.to}</div>`).join("");
+}
+async function resetDemo() { await api("POST", "/demo/reset"); session = null; current = null; $("design").textContent = "none yet"; $("actions").innerHTML = ""; refresh(); }
+async function refresh() {
+  const m = await api("GET", `/customers/${cid()}/memory`);
+  $("memory").innerHTML = m.memories.map(x => `<div class="ev"><span class="tag">${x.type}</span>${x.rule} (conf ${x.confidence.toFixed(2)})
+    <button onclick="delMem('${x.id}')">forget</button></div>`).join("") +
+    m.episodes.map(e => `<div class="ev"><span class="tag">episodic</span>${e.verdict}: ${e.reason_text || ""}</div>`).join("") || "<i>empty</i>";
+  const jobs = await api("GET", `/customers/${cid()}/jobs`);
+  $("jobs").innerHTML = jobs.map(j => `<div class="ev">job ${j.id.slice(0, 6)} - ${j.status} - $${j.bom.total_cost}
+    ${j.status === "pending_human_approval" ? `<button onclick="approve('${j.id}')">Approve</button>` : `<button onclick="exportStl('${j.design_id}')">Export STL</button>`}</div>`).join("") || "<i>none</i>";
+  const ev = await api("GET", `/customers/${cid()}/events`);
+  $("events").innerHTML = ev.map(e => `<div class="ev"><b>${e.step}</b><pre>${JSON.stringify(Object.fromEntries(Object.entries(e).filter(([k]) => !["id", "customer_id", "ts", "step", "design_id"].includes(k))), null, 1)}</pre></div>`).join("");
+}
+refresh();
+</script>
+</body>
+</html>
