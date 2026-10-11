@@ -50,9 +50,10 @@ request -> generated design -> customer rejection -> persistent memory -> improv
 10. **Measure improvement.** `evaluations` collection stores verdicts per design. Add a simple view/endpoint: acceptance rate with memory ON vs OFF.
 
 ### P2: nice to have
-11. Voice (ElevenLabs), storefront polish (Next.js), Vercel deploy, deployed backend.
-12. Preference decay/confidence lowering over time; handling of conflicting preferences (currently newer preference for the same key replaces the old one and logs `memory_superseded`).
-13. Material price table (`db.COMPONENTS`) and pricing multiplier in `agent.approve_job` (x2.5) are placeholders.
+11. **REMINDER: make the demo video with Runway** (screen-record the demo script in section 6, then edit/polish in Runway).
+12. Voice (ElevenLabs), storefront polish (Next.js), Vercel deploy, deployed backend.
+13. Preference decay/confidence lowering over time; handling of conflicting preferences (currently newer preference for the same key replaces the old one and logs `memory_superseded`).
+14. Material price table (`db.COMPONENTS`) and pricing multiplier in `agent.approve_job` (x2.5) are placeholders.
 
 ## 3. Known issues / decisions to remember
 - **Spec geometry conflict:** a true sphere (OD 11.5, width 10.5) has a flat face radius of ~2.35 mm, smaller than the hole radius (2.5 mm), so flats and the 0.5 mm fillet are impossible. We use a **barrel** profile (straight wall, rounded corners, default radius 2.0 mm). Rule `face_land` requires >= 0.5 mm flat land beside the fillet. Documented in README. If a rounder look is wanted, switch to an elliptical profile in `geometry.profile_points` and re-run tests.
