@@ -1,0 +1,44 @@
+{
+  "workflow_id": "wf_vector_beast_demo",
+  "workflow_name": "MongoAtlasVectorBeast — Multi-Node Visual Pipeline",
+  "nodes": [
+    {
+      "id": "node_filter_1",
+      "type": "FilterNode",
+      "config": {
+        "field": "department",
+        "op": "eq",
+        "value": "Platform Engineering"
+      }
+    },
+    {
+      "id": "node_vector_2",
+      "type": "VectorSearchNode",
+      "config": {
+        "index": "review_vector_index",
+        "field": "review_embedding",
+        "limit": 20
+      }
+    },
+    {
+      "id": "node_graph_3",
+      "type": "GraphJoinNode",
+      "config": {
+        "fromCollection": "departments",
+        "localField": "department_id",
+        "foreignField": "_id",
+        "asField": "department_details"
+      }
+    },
+    {
+      "id": "node_llm_4",
+      "type": "LLMAgentNode",
+      "config": {
+        "provider": "gemini",
+        "model": "gemini-2.5-flash",
+        "promptTemplate": "Synthesize the candidate review profiles and department details:\n{{documents}}",
+        "outputField": "summary"
+      }
+    }
+  ]
+}

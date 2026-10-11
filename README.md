@@ -6,6 +6,9 @@ MongoDB Atlas is the memory, state and governance layer. The LLM is swappable (`
 
 > Remaining work and next-session instructions: see [HANDOFF.md](HANDOFF.md).
 
+> Combined hackathon repo: [MongoAtlasVectorBeast/](MongoAtlasVectorBeast/) contains
+> [gitlitfilms-del/MongoAtlasVectorBeast](https://github.com/gitlitfilms-del/MongoAtlasVectorBeast) (merged with full history via `git subtree`).
+
 ## Loop
 request -> memory recall -> design (JSON spec) -> constraint validation/auto-fix -> customer feedback ->
 episode + candidate memory -> evaluate -> promote -> improved next design -> BOM job -> human approval -> STL

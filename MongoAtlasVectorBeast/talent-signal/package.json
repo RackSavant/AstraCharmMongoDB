@@ -1,0 +1,16 @@
+{
+  "name": "talent-signal",
+  "version": "0.1.0",
+  "description": "Talent Signal — Visual Workflow Compiler Demo for MongoDB Atlas Vector Search",
+  "main": "dist/example.js",
+  "scripts": {
+    "build": "tsc",
+    "demo": "npx tsx src/example.ts",
+    "test": "npx tsx src/example.ts"
+  },
+  "devDependencies": {
+    "@types/node": "^20.0.0",
+    "tsx": "^4.19.0",
+    "typescript": "^5.0.0"
+  }
+}

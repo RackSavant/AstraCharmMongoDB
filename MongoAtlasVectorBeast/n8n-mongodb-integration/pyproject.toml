@@ -1,0 +1,23 @@
+[project]
+name = "n8n-mongodb-integration"
+version = "0.1.0"
+description = "n8n MongoDB Integration Suite — Templates and tools for MongoDB Atlas Vector Store, Chat Memory, and Document Operations in n8n."
+authors = [
+    {name = "GitLit Films", email = "dev@gitlitfilms.com"},
+]
+
+dependencies = [
+    "google-adk[gcp,otel-gcp]>=2.2.0,<3.0.0",
+    "pymongo>=4.8.0",
+    "pydantic>=2.10.0",
+    "a2a-sdk[http-server]~=0.3.22",
+    "python-dotenv>=1.0.0",
+]
+requires-python = ">=3.11,<3.14"
+
+[build-system]
+requires = ["hatchling"]
+build-backend = "hatchling.build"
+
+[tool.hatch.build.targets.wheel]
+packages = ["app"]
