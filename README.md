@@ -4,6 +4,8 @@ A persistent commerce agent that remembers rejections, changes its next design, 
 constraints, logs every decision, and exports a printable STL after human approval.
 MongoDB Atlas is the memory, state and governance layer. The LLM is swappable (`app/llm.py`).
 
+> Remaining work and next-session instructions: see [HANDOFF.md](HANDOFF.md).
+
 ## Loop
 request -> memory recall -> design (JSON spec) -> constraint validation/auto-fix -> customer feedback ->
 episode + candidate memory -> evaluate -> promote -> improved next design -> BOM job -> human approval -> STL
