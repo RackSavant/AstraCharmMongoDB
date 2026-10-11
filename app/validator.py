@@ -1,36 +1,56 @@
 import math
 from typing import Dict, List, Optional
 
-from app.design_spec import DEFAULT_RULES, METAL_DENSITY_G_CM3, RingSpec
+from app import geometry
+from app.design_spec import DEFAULT_RULES, MATERIAL_DENSITY_G_CM3, CharmSpec
 
 
-def estimate_weight_g(spec: RingSpec) -> float:
-    r = spec.inner_diameter_mm / 2
-    t = spec.band_thickness_mm
-    vol_mm3 = math.pi * ((r + t) ** 2 - r ** 2) * spec.band_width_mm
-    return round(vol_mm3 / 1000 * METAL_DENSITY_G_CM3[spec.metal], 3)
+def estimate_weight_g(spec: CharmSpec) -> float:
+    return round(geometry.volume_mm3(spec) / 1000 * MATERIAL_DENSITY_G_CM3[spec.material], 3)
 
 
-def _check(rule: dict, spec: RingSpec) -> Optional[str]:
+def _check(rule: dict, spec: CharmSpec) -> Optional[str]:
     kind = rule["kind"]
-    if kind == "weight":
+    if kind == "range":
+        val = getattr(spec, rule["field"])
+        if not (rule["min"] <= val <= rule["max"]):
+            return f"{rule['field']}={val} outside [{rule['min']}, {rule['max']}]"
+    elif kind == "min":
+        val = getattr(spec, rule["field"])
+        if val < rule["value"]:
+            return f"{rule['field']}={val} < {rule['value']}"
+    elif kind == "max":
+        val = getattr(spec, rule["field"])
+        if val > rule["value"]:
+            return f"{rule['field']}={val} > {rule['value']}"
+    elif kind == "wall":
+        w = geometry.wall_mm(spec)
+        if w < rule["value"]:
+            return f"wall {round(w, 3)} mm < {rule['value']} mm"
+    elif kind == "width_vs_od":
+        limit = spec.outer_diameter_mm - rule["value"]
+        if spec.bead_width_mm > limit:
+            return f"bead_width_mm={spec.bead_width_mm} > outer_diameter_mm - {rule['value']} ({round(limit, 3)})"
+    elif kind == "corner_vs_width":
+        if spec.corner_radius_mm > spec.bead_width_mm / 2:
+            return f"corner_radius_mm={spec.corner_radius_mm} > bead_width_mm/2"
+    elif kind == "land":
+        land = geometry.face_land_mm(spec)
+        if land < rule["value"]:
+            return f"flat land {round(land, 3)} mm < {rule['value']} mm"
+    elif kind == "groove_fit":
+        if spec.groove_count > 0:
+            spacing = geometry.straight_length(spec) / (spec.groove_count + 1)
+            if spacing < rule["value"]:
+                return f"groove spacing {round(spacing, 3)} mm < {rule['value']} mm"
+    elif kind == "weight":
         w = estimate_weight_g(spec)
-        return f"estimated weight {w}g > {rule['value']}g" if w > rule["value"] else None
-    val = getattr(spec, rule["field"])
-    if kind == "min" and val < rule["value"]:
-        return f"{rule['field']}={val} < {rule['value']}"
-    if kind == "max" and val > rule["value"]:
-        return f"{rule['field']}={val} > {rule['value']}"
-    if kind == "range" and not (rule["min"] <= val <= rule["max"]):
-        return f"{rule['field']}={val} outside [{rule['min']}, {rule['max']}]"
-    if kind == "ratio" and spec.stone_shape != "none":
-        limit = getattr(spec, rule["ref"]) * rule["value"]
-        if val > limit:
-            return f"{rule['field']}={val} > {rule['value']}x {rule['ref']} ({round(limit, 3)})"
+        if w > rule["value"]:
+            return f"estimated weight {w}g > {rule['value']}g"
     return None
 
 
-def validate(spec: RingSpec, rules: Optional[List[dict]] = None) -> Dict:
+def validate(spec: CharmSpec, rules: Optional[List[dict]] = None) -> Dict:
     rules = rules or DEFAULT_RULES
     violations = []
     for rule in rules:
@@ -40,48 +60,50 @@ def validate(spec: RingSpec, rules: Optional[List[dict]] = None) -> Dict:
     return {"valid": not violations, "violations": violations, "fixes": []}
 
 
-def auto_fix(spec: RingSpec, rules: Optional[List[dict]] = None):
+def auto_fix(spec: CharmSpec, rules: Optional[List[dict]] = None):
     rules = rules or DEFAULT_RULES
-    data = spec.model_dump()
-    fixes = []
+    by_id = {r["id"]: r for r in rules}
+    d = spec.model_dump()
+    fixes: list = []
 
     def setv(field, new, rule_id):
-        old = data[field]
-        if old != new:
-            data[field] = round(new, 3)
-            fixes.append({"rule_id": rule_id, "field": field, "from": old, "to": round(new, 3)})
+        new = round(new, 3) if isinstance(new, float) else new
+        if d[field] != new:
+            fixes.append({"rule_id": rule_id, "field": field, "from": d[field], "to": new})
+            d[field] = new
 
-    by_id = {r["id"]: r for r in rules}
-    for rid in ("min_thickness", "min_width"):
-        r = by_id.get(rid)
-        if r and data[r["field"]] < r["value"]:
-            setv(r["field"], r["value"], rid)
-    r = by_id.get("diameter_range")
-    if r:
-        setv(r["field"], min(max(data[r["field"]], r["min"]), r["max"]), "diameter_range")
-    r = by_id.get("max_setting")
-    if r and data[r["field"]] > r["value"]:
-        setv(r["field"], r["value"], "max_setting")
-    r = by_id.get("stone_ratio")
-    if r and data["stone_shape"] != "none":
-        limit = data[r["ref"]] * r["value"]
-        if data[r["field"]] > limit:
-            setv(r["field"], limit, "stone_ratio")
-    r = by_id.get("max_weight")
-    if r:
-        min_t = by_id.get("min_thickness", {}).get("value", 0)
-        min_w = by_id.get("min_width", {}).get("value", 0)
-        for _ in range(500):
-            if estimate_weight_g(RingSpec(**data)) <= r["value"]:
-                break
-            if data["band_thickness_mm"] - 0.1 >= min_t:
-                data["band_thickness_mm"] = round(data["band_thickness_mm"] - 0.1, 3)
-            elif data["band_width_mm"] - 0.1 >= min_w:
-                data["band_width_mm"] = round(data["band_width_mm"] - 0.1, 3)
-            else:
-                break
-        orig = spec.model_dump()
-        for f in ("band_thickness_mm", "band_width_mm"):
-            if orig[f] != data[f] and not any(x["field"] == f and x["rule_id"] == "max_weight" for x in fixes):
-                fixes.append({"rule_id": "max_weight", "field": f, "from": orig[f], "to": data[f]})
-    return RingSpec(**data), fixes
+    def clamp(rule_id):
+        r = by_id.get(rule_id)
+        if r:
+            setv(r["field"], min(max(d[r["field"]], r["min"]), r["max"]), rule_id)
+
+    clamp("hole_range")
+    clamp("od_range")
+    if "min_wall" in by_id:
+        need = d["core_hole_mm"] + 2 * by_id["min_wall"]["value"]
+        if d["outer_diameter_mm"] < need:
+            setv("outer_diameter_mm", need, "min_wall")
+    clamp("width_range")
+    if "width_vs_od" in by_id:
+        limit = d["outer_diameter_mm"] - by_id["width_vs_od"]["value"]
+        if d["bead_width_mm"] > limit:
+            setv("bead_width_mm", limit, "width_vs_od")
+    clamp("fillet_range")
+    clamp("corner_range")
+    if "corner_vs_width" in by_id and d["corner_radius_mm"] > d["bead_width_mm"] / 2:
+        setv("corner_radius_mm", d["bead_width_mm"] / 2, "corner_vs_width")
+    if "face_land" in by_id:
+        max_corner = d["outer_diameter_mm"] / 2 - (d["core_hole_mm"] / 2 + d["fillet_mm"]) - by_id["face_land"]["value"]
+        if d["corner_radius_mm"] > max_corner:
+            setv("corner_radius_mm", max_corner, "face_land")
+    if "groove_depth" in by_id and d["groove_depth_mm"] > by_id["groove_depth"]["value"]:
+        setv("groove_depth_mm", by_id["groove_depth"]["value"], "groove_depth")
+    if "groove_fit" in by_id:
+        length = d["bead_width_mm"] - 2 * d["corner_radius_mm"]
+        n = d["groove_count"]
+        while n > 0 and length / (n + 1) < by_id["groove_fit"]["value"]:
+            n -= 1
+        setv("groove_count", n, "groove_fit")
+    if d["groove_count"] == 0:
+        d["groove_depth_mm"] = 0.0
+    return CharmSpec(**d), fixes

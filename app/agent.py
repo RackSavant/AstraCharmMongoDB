@@ -7,7 +7,7 @@ from pydantic import ValidationError
 
 from app import llm, memory
 from app.db import get_db
-from app.design_spec import RingSpec
+from app.design_spec import PRINT_PROFILE, CharmSpec
 from app.logger import log_decision
 from app.stl_generator import export_stl
 from app.validator import auto_fix, estimate_weight_g, validate
@@ -15,10 +15,10 @@ from app.validator import auto_fix, estimate_weight_g, validate
 MAX_REVISIONS = 2
 
 DESIGN_SYSTEM = (
-    "You are Astra, a jewelry merchandiser. Return ONLY a JSON ring spec with keys: "
-    "band_width_mm, band_thickness_mm, inner_diameter_mm, profile(flat|domed|comfort), "
-    "stone_shape(none|round|oval), stone_diameter_mm, setting_height_mm, "
-    "metal(silver|gold|platinum), style_tags[], rationale. Respect customer preferences and "
+    "You are Astra, a charm merchandiser designing bangle-compatible barrel bead charms for 3D printing. "
+    "Return ONLY a JSON spec with keys: outer_diameter_mm, bead_width_mm, core_hole_mm, fillet_mm, "
+    "corner_radius_mm, groove_count, groove_depth_mm, motif(none|moon|star|heart), "
+    "material(resin|silver|gold), style_tags[], rationale. Respect customer preferences and "
     "manufacturing constraints."
 )
 
@@ -66,11 +66,11 @@ def _build_prompt(request_text: str, recalled: dict, rules: list) -> str:
     return "\n".join(parts)
 
 
-def _generate_spec(prompt: str, context: dict) -> RingSpec:
+def _generate_spec(prompt: str, context: dict) -> CharmSpec:
     last = None
     for _ in range(2):
         try:
-            return RingSpec(**llm.complete_json("design", DESIGN_SYSTEM, prompt, context))
+            return CharmSpec(**llm.complete_json("design", DESIGN_SYSTEM, prompt, context))
         except (ValidationError, ValueError, TypeError) as exc:
             last = exc
     raise SpecRefusedError(f"LLM output failed schema validation twice: {last}")
@@ -147,18 +147,13 @@ def generate_design(customer_id: str, request_text: str, session_id: Optional[st
 
 def _bom(spec: dict) -> dict:
     db = get_db()
-    metal = db.components.find_one({"kind": "metal", "name": spec["metal"]}, {"_id": 0})
-    grams = estimate_weight_g(RingSpec(**spec))
-    metal_cost = round(grams * metal["price_per_g"], 2)
-    stone_cost = 0.0
-    stone = None
-    if spec["stone_shape"] != "none":
-        s = db.components.find_one({"kind": "stone", "name": spec["stone_shape"]}, {"_id": 0})
-        stone_cost = round(spec["stone_diameter_mm"] * s["price_per_mm"], 2)
-        stone = {"component_id": s["id"], "diameter_mm": spec["stone_diameter_mm"], "cost": stone_cost}
-    labor = 25.0
-    return {"metal": {"component_id": metal["id"], "grams": grams, "cost": metal_cost}, "stone": stone,
-            "labor": labor, "total_cost": round(metal_cost + stone_cost + labor, 2)}
+    material = db.components.find_one({"kind": "material", "name": spec["material"]}, {"_id": 0})
+    grams = estimate_weight_g(CharmSpec(**spec))
+    material_cost = round(grams * material["price_per_g"], 2)
+    labor = 8.0
+    return {"material": {"component_id": material["id"], "grams": grams, "cost": material_cost},
+            "labor": labor, "print_profile": PRINT_PROFILE,
+            "total_cost": round(material_cost + labor, 2)}
 
 
 def handle_feedback(design_id: str, verdict: str, reason_text: str = "") -> dict:
@@ -218,7 +213,7 @@ def export_design(design_id: str) -> dict:
     if design["approval_status"] != "approved_for_manufacturing":
         log_decision(design["customer_id"], "export_blocked", design_id, reason="human approval required")
         raise ApprovalRequiredError("STL export requires human manufacturing approval")
-    info = export_stl(RingSpec(**design["spec"]), design_id)
+    info = export_stl(CharmSpec(**design["spec"]), design_id)
     log_decision(design["customer_id"], "stl_exported", design_id, **info)
     return info
 

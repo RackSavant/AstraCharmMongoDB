@@ -33,11 +33,9 @@ def seed_constraints(db=None, version: int = 1) -> None:
 
 
 COMPONENTS = [
-    {"id": "metal_silver", "kind": "metal", "name": "silver", "price_per_g": 1.0},
-    {"id": "metal_gold", "kind": "metal", "name": "gold", "price_per_g": 65.0},
-    {"id": "metal_platinum", "kind": "metal", "name": "platinum", "price_per_g": 35.0},
-    {"id": "stone_round", "kind": "stone", "name": "round", "price_per_mm": 2.0},
-    {"id": "stone_oval", "kind": "stone", "name": "oval", "price_per_mm": 2.5},
+    {"id": "material_resin", "kind": "material", "name": "resin", "price_per_g": 0.5},
+    {"id": "material_silver", "kind": "material", "name": "silver", "price_per_g": 1.0},
+    {"id": "material_gold", "kind": "material", "name": "gold", "price_per_g": 65.0},
 ]
 
 

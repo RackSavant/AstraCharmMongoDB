@@ -8,9 +8,9 @@ from app.db import get_db, using_atlas
 from app.logger import log_decision
 
 ALLOWED_PREFERENCES = {
-    "band": {"thin", "thick"},
-    "stone": {"small", "none"},
-    "style": {"minimal"},
+    "size": {"compact", "bold"},
+    "pattern": {"smooth", "grooved"},
+    "motif": {"moon", "star", "heart"},
 }
 MIN_PROMOTE_CONFIDENCE = 0.5
 INITIAL_CONFIDENCE = 0.6
@@ -18,7 +18,7 @@ REINFORCE_STEP = 0.2
 
 EXTRACT_SYSTEM = (
     "Extract at most one durable customer preference from a design rejection reason. "
-    "Return JSON {key, value, rule} where key is one of band|stone|style, or {} if none."
+    "Return JSON {key, value, rule} where key is one of size|pattern|motif, or {} if none."
 )
 
 
